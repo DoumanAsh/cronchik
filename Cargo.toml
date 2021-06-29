@@ -1,0 +1,17 @@
+[package]
+name = "cronchik"
+version = "1.0.0"
+authors = ["Douman <douman@gmx.se>"]
+edition = "2018"
+description = "Simple cron notation parser"
+license = "BSL-1.0"
+repository = "https://github.com/DoumanAsh/cronchik"
+readme = "README.md"
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "README.md"
+]
+
+[dependencies]
+statiki = "0.4.1"
