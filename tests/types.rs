@@ -46,6 +46,13 @@ macro_rules! assert_test {
             assert_eq!(val, expected_val);
         }
 
+        println!("{}: Verify step by 5 starting from 3", stringify!($ty));
+        let result = Type::from_expr("3/5").expect("To parse list");
+        for (idx, expected_val) in (3..=Type::MAX).step_by(5).enumerate() {
+            let val: u8 = result[idx].into();
+            assert_eq!(val, expected_val);
+        }
+
         println!("{}: Verify step by 0", stringify!($ty));
         Type::from_expr("*/0").expect_err("Should fail step by 0");
     }

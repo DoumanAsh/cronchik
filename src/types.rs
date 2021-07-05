@@ -89,14 +89,18 @@ macro_rules! impl_from_expr {
                     }
                 }
 
-            } else if let Some(field) = field.strip_prefix("*/") {
-                let step: usize = Self::from_str(field, InvalidExpr::InvalidStepValue, InvalidExpr::InvalidStepRange)?.into();
+            } else if let Some([init, step]) = field.split("/").collect_exact() {
+                let init: u8 = match init {
+                    "*" => Self::MIN,
+                    init => Self::from_str(init, InvalidExpr::InvalidStepValue, InvalidExpr::InvalidStepRange)?.into(),
+                };
+                let step: usize = Self::from_str(step, InvalidExpr::InvalidStepValue, InvalidExpr::InvalidStepRange)?.into();
 
                 if step == 0 {
                     return Err(InvalidExpr::InvalidStepRange);
                 }
 
-                for num in (Self::MIN..=Self::MAX).step_by(step.into()) {
+                for num in (init..=Self::MAX).step_by(step) {
                     let num = Self::from_num_asserted(num);
                     if !result.contains(&num) {
                         if result.push(num).is_some() {

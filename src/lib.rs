@@ -5,6 +5,7 @@
 //!- `serde_on` - Enables serialization/deserialization.
 //!- `time` - Enables schedule calculation using `time` crate.
 
+#![no_std]
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
