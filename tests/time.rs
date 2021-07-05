@@ -133,11 +133,24 @@ fn should_schedule_on_overflow_day_of_week() {
     let schedule = CronSchedule::parse_str("0 20 * * FRI").unwrap();
     assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-02-01));
 
+    let schedule = CronSchedule::parse_str("0 20 * MAR FRI").unwrap();
+    assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-03-01));
+
     let schedule = CronSchedule::parse_str("0 20 * * SAT").unwrap();
     assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-02-02));
 
     let schedule = CronSchedule::parse_str("0 20 * * MON").unwrap();
     assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-02-04));
+
+    let schedule = CronSchedule::parse_str("0 20 * * TUE").unwrap();
+    assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-02-05));
+
+    let schedule = CronSchedule::parse_str("0 20 * * WED").unwrap();
+    assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-02-06));
+
+    //fits time's Date
+    let schedule = CronSchedule::parse_str("0 20 * * THU").unwrap();
+    assert_eq!(schedule.next_time_from(time).date(), time::date!(2019-01-31));
 }
 
 #[test]

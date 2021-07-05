@@ -5,7 +5,6 @@
 //!- `serde_on` - Enables serialization/deserialization.
 //!- `time` - Enables schedule calculation using `time` crate.
 
-#![no_std]
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
@@ -140,6 +139,8 @@ impl CronSchedule {
         let mut next = time + time::Duration::minute();
 
         let result = loop {
+            debug_assert_ne!(next.year() - time.year(), 5, "Unable to find  schedule within 4 years");
+
             let (month, day) = next.month_day();
 
             if let Err(idx) = self.month.binary_search(&Month::from_num_asserted(month)) {
@@ -170,13 +171,20 @@ impl CronSchedule {
                 continue;
             }
 
-            let weekday = next.weekday().number_days_from_sunday();
-            if let Err(idx) = self.day_w.binary_search(&Day::from_num_asserted(weekday)) {
-                //If not today, check next available day within a week in schedule, if any.
-                let date = match self.day_w.get(idx).and_then(|day_w| time::Date::try_from_ymd(next.year(), month, day + *day_w as u8 - weekday).ok()) {
-                    Some(date) => date,
-                    //If day doesn't fit the current week then switch to next
-                    None => next.date() + time::Duration::day(),
+            let weekday = next.weekday();
+            let weekday_s = weekday.number_days_from_sunday();
+            if let Err(idx) = self.day_w.binary_search(&Day::from_num_asserted(weekday_s)) {
+                let date = match self.day_w.get(idx) {
+                    Some(day_w) => match time::Date::try_from_ymd(next.year(), month, day + *day_w as u8 - weekday_s) {
+                        //Day is on current week.
+                        Ok(date) => date,
+                        //Day is in next month so iterate onto next month (note weekday enum is in range 0..6)
+                        Err(_) if month < Month::MAX => time::Date::try_from_ymd(next.year(), month + 1, *day_w as u8 - weekday_s).expect("Get next month date"),
+                        //Day is in next year so iterate onto next month (note weekday enum is in range 0..6)
+                        Err(_) => time::Date::try_from_ymd(next.year() + 1, 1, *day_w as u8 - weekday_s).expect("Get next year date"),
+                    },
+                    //This week doesn't work, iterate onto next week by number of days until Sunday
+                    None => next.date() + time::Duration::days(time::Weekday::Sunday as i64 - weekday as i64),
                 };
 
                 let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
