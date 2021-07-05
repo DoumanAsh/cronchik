@@ -1,8 +1,15 @@
 //! Simple cron notation parser
+//!
+//!## Features
+//!
+//!- `serde_on` - Enables serialization/deserialization.
 
 #![no_std]
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
+
+#[cfg(feature = "serde_on")]
+use serde::{Serialize, Deserialize};
 
 mod utils;
 mod types;
@@ -32,16 +39,35 @@ pub enum ParseError {
 }
 
 ///Cron schedule.
+///
+///## Size
+///
+///216 bytes.
+///
+///This is relatively big struct, which might be better suited to be allocated on heap.
+///So if you expect to move it a lot, prefer heap.
+///Alternatively you could store cron expression as `String` and parse it each time.
+///
+///## Usage
+///
+///```
+///use cronchik::CronSchedule;
+///
+///let schedule = CronSchedule::parse_str("5 * * * *").unwrap();
+///assert_eq!(core::mem::size_of::<CronSchedule>(), 216);
+///```
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 pub struct CronSchedule {
-    second: statiki::Array<Second, {Second::MAX as usize +1}>,
-    minute: statiki::Array<Minute, {Minute::MAX as usize +1}>,
-    hour: statiki::Array<Hour, {Hour::MAX as usize +1}>,
-    day: statiki::Array<Day, {Day::MAX as usize +1}>,
-    month: statiki::Array<Month, {Month::MAX as usize}>,
+    second: statiki::Array<Second, {(Second::MAX - Second::MIN) as usize + 1}>,
+    minute: statiki::Array<Minute, {(Minute::MAX - Minute::MIN) as usize + 1}>,
+    hour: statiki::Array<Hour, {(Hour::MAX - Hour::MIN) as usize + 1}>,
+    day: statiki::Array<Day, {(Day::MAX - Day::MIN) as usize + 1}>,
+    month: statiki::Array<Month, {(Month::MAX - Month::MIN) as usize + 1}>,
 }
 
 impl CronSchedule {
-    ///Parses cron expression from ascii bytes.
+    ///Parses cron expression from string.
     pub fn parse_str(text: &str) -> Result<Self, ParseError> {
         let mut text = text.trim().split_whitespace();
 

@@ -1,3 +1,6 @@
+#[cfg(feature = "serde_on")]
+use serde::{Serialize, Deserialize};
+
 use crate::utils::IteratorExt;
 
 const ZERO_CHAR_BYTE: u8 = b'0';
@@ -20,6 +23,14 @@ pub enum InvalidExpr {
     InvalidRange,
     ///Indicates that specified range contains reversed values.
     InvalidRangeRev,
+    ///Indicates that too many values are parsed. Indicates Internal Error of library.
+    ParserOverflow
+}
+
+#[cold]
+#[inline(never)]
+const fn parser_overflow() -> InvalidExpr {
+    InvalidExpr::ParserOverflow
 }
 
 macro_rules! impl_into_inner {
@@ -73,7 +84,9 @@ macro_rules! impl_from_expr {
                 }
 
                 for num in Self::MIN..=Self::MAX {
-                    result.push(Self::from_num_asserted(num));
+                    if result.push(Self::from_num_asserted(num)).is_some() {
+                        return Err(parser_overflow());
+                    }
                 }
 
             } else if let Some(field) = field.strip_prefix("*/") {
@@ -86,7 +99,9 @@ macro_rules! impl_from_expr {
                 for num in (Self::MIN..=Self::MAX).step_by(step.into()) {
                     let num = Self::from_num_asserted(num);
                     if !result.contains(&num) {
-                        result.push(num);
+                        if result.push(num).is_some() {
+                            return Err(parser_overflow());
+                        }
                     }
                 }
 
@@ -102,7 +117,9 @@ macro_rules! impl_from_expr {
                 for num in from.into()..=to.into() {
                     let num = Self::from_num_asserted(num);
                     if !result.contains(&num) {
-                        result.push(num);
+                        if result.push(num).is_some() {
+                            return Err(parser_overflow());
+                        }
                     }
                 }
 
@@ -110,7 +127,9 @@ macro_rules! impl_from_expr {
             } else {
                 let num = Self::from_str(field, InvalidExpr::InvalidEntryValue, InvalidExpr::InvalidEntryRange)?;
                 if !result.contains(&num) {
-                    result.push(num);
+                    if result.push(num).is_some() {
+                        return Err(parser_overflow());
+                    }
                     result.sort_unstable();
                 }
             }
@@ -119,6 +138,8 @@ macro_rules! impl_from_expr {
         return Ok(result);
     }
 }
+
+#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Second of the minute.
@@ -165,6 +186,7 @@ impl Second {
     }
 }
 
+#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Minute of the hour.
@@ -211,6 +233,7 @@ impl Minute {
     }
 }
 
+#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Hour of the day.
@@ -257,6 +280,7 @@ impl Hour {
     }
 }
 
+#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Day of the week.
@@ -366,6 +390,7 @@ impl Day {
     }
 }
 
+#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Month of the year.
