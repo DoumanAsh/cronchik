@@ -3,6 +3,7 @@
 //!## Features
 //!
 //!- `serde_on` - Enables serialization/deserialization.
+//!- `time` - Enables schedule calculation using `time` crate.
 
 #![no_std]
 #![warn(missing_docs)]
@@ -42,7 +43,7 @@ pub enum ParseError {
 ///
 ///## Size
 ///
-///216 bytes.
+///184 bytes.
 ///
 ///This is relatively big struct, which might be better suited to be allocated on heap.
 ///So if you expect to move it a lot, prefer heap.
@@ -54,16 +55,16 @@ pub enum ParseError {
 ///use cronchik::CronSchedule;
 ///
 ///let schedule = CronSchedule::parse_str("5 * * * *").unwrap();
-///assert_eq!(core::mem::size_of::<CronSchedule>(), 216);
+///assert_eq!(core::mem::size_of::<CronSchedule>(), 184);
 ///```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 pub struct CronSchedule {
-    second: statiki::Array<Second, {(Second::MAX - Second::MIN) as usize + 1}>,
     minute: statiki::Array<Minute, {(Minute::MAX - Minute::MIN) as usize + 1}>,
     hour: statiki::Array<Hour, {(Hour::MAX - Hour::MIN) as usize + 1}>,
-    day: statiki::Array<Day, {(Day::MAX - Day::MIN) as usize + 1}>,
+    day_m: statiki::Array<DayOfMonth, {(DayOfMonth::MAX - DayOfMonth::MIN) as usize + 1}>,
     month: statiki::Array<Month, {(Month::MAX - Month::MIN) as usize + 1}>,
+    day_w: statiki::Array<Day, {(Day::MAX - Day::MIN) as usize + 1}>,
 }
 
 impl CronSchedule {
@@ -83,29 +84,30 @@ impl CronSchedule {
             }
         }
 
-        let second = parse_next!(Second);
+        //let second = parse_next!(Second);
         let minute = parse_next!(Minute);
         let hour = parse_next!(Hour);
-        let day = parse_next!(Day);
+        let day_m = parse_next!(DayOfMonth);
         let month = parse_next!(Month);
+        let day_w = parse_next!(Day);
 
         if let Some(_) = text.next() {
             return Err(ParseError::Unsupported);
         }
 
         Ok(Self {
-            second,
             minute,
             hour,
-            day,
-            month
+            day_m,
+            month,
+            day_w,
         })
     }
 
     #[inline(always)]
-    ///Returns ordered list of scheduled seconds to run at.
-    pub fn seconds(&self) -> &[Second] {
-        &self.second
+    ///Returns ordered list of scheduled days in month to run at.
+    pub fn days_of_month(&self) -> &[DayOfMonth] {
+        &self.day_m
     }
 
     #[inline(always)]
@@ -121,14 +123,106 @@ impl CronSchedule {
     }
 
     #[inline(always)]
-    ///Returns ordered list of scheduled days to run at.
-    pub fn days(&self) -> &[Day] {
-        &self.day
+    ///Returns ordered list of scheduled days in week to run at.
+    pub fn days_of_week(&self) -> &[Day] {
+        &self.day_w
     }
 
     #[inline(always)]
     ///Returns ordered list of scheduled months to run at.
     pub fn months(&self) -> &[Month] {
         &self.month
+    }
+
+    #[cfg(feature = "time")]
+    ///Returns next point if time, after `time`, accordingly to the schedule.
+    pub fn next_time_from(&self, time: time::OffsetDateTime) -> time::OffsetDateTime {
+        let mut next = time + time::Duration::minute();
+
+        let result = loop {
+            let (month, day) = next.month_day();
+
+            if let Err(idx) = self.month.binary_search(&Month::from_num_asserted(month)) {
+                let date = match self.month.get(idx) {
+                    Some(month) => time::Date::try_from_ymd(next.year(), *month as _, 1).expect("Get next month date"),
+                    None => time::Date::try_from_ymd(next.year() + 1, 1, 1).expect("Get next year date"),
+                };
+
+                let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
+                next = date_time.assume_utc();
+
+                continue;
+            }
+
+            if let Err(idx) = self.day_m.binary_search(&DayOfMonth::from_num_asserted(day)) {
+                //If not today, check next available day in schedule, if any.
+                let date = match self.day_m.get(idx).and_then(|day| time::Date::try_from_ymd(next.year(), month, (*day).into()).ok()) {
+                    Some(date) => date,
+                    //If next allowed day doesn't fit the current month, then just switch to next month, unless it is last month
+                    None if month < Month::MAX => time::Date::try_from_ymd(next.year(), month + 1, 1).expect("Get next month date"),
+                    //If it is last month, then switch to next year.
+                    None => time::Date::try_from_ymd(next.year() + 1, 1, 1).expect("Get next year date"),
+                };
+
+                let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
+                next = date_time.assume_utc();
+
+                continue;
+            }
+
+            let weekday = next.weekday().number_days_from_sunday();
+            if let Err(idx) = self.day_w.binary_search(&Day::from_num_asserted(weekday)) {
+                //If not today, check next available day within a week in schedule, if any.
+                let date = match self.day_w.get(idx).and_then(|day_w| time::Date::try_from_ymd(next.year(), month, day + *day_w as u8 - weekday).ok()) {
+                    Some(date) => date,
+                    //If day doesn't fit the current week then switch to next
+                    None => next.date() + time::Duration::day(),
+                };
+
+                let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
+                next = date_time.assume_utc();
+
+                continue;
+            }
+
+            let hour = next.hour();
+            if let Err(idx) = self.hour.binary_search(&Hour::from_num_asserted(hour)) {
+                let (date, time) = match self.hour.get(idx) {
+                    Some(hour) => (next.date(), time::Time::try_from_hms((*hour).into(), 0, 0).expect("Get next hour")),
+                    //Try next day
+                    None => (next.date() + time::Duration::day(), time::Time::midnight()),
+                };
+
+                next = time::PrimitiveDateTime::new(date, time).assume_utc();
+                continue;
+            }
+
+            let minute = next.minute();
+            if let Err(idx) = self.minute.binary_search(&Minute::from_num_asserted(minute)) {
+                match self.minute.get(idx) {
+                    Some(minute) => {
+                        let time = time::Time::try_from_hms(hour, (*minute).into(), 0).expect("Get next minute");
+                        next = time::PrimitiveDateTime::new(next.date(), time).assume_utc();
+                    },
+                    //Next hour
+                    None => {
+                        let time = time::Time::try_from_hms(hour, 0, 0).expect("Get current hour");
+                        next = time::PrimitiveDateTime::new(next.date(), time).assume_utc() + time::Duration::hour();
+                    }
+                }
+                continue;
+            }
+
+            break next;
+        };
+
+        result
+    }
+
+    #[cfg(feature = "time")]
+    #[inline(always)]
+    ///Returns next point if time, after current time in UTC timezone.
+    pub fn next_time_from_now(&self) -> time::OffsetDateTime {
+        self.next_time_from(time::OffsetDateTime::now_utc())
     }
 }

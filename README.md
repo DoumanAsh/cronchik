@@ -9,3 +9,4 @@ Cron notation parser.
 ## Features
 
 - `serde_on` - Enables serialization/deserialization.
+- `time` - Enables schedule calculation using `time` crate.

@@ -52,9 +52,9 @@ macro_rules! assert_test {
 }
 
 #[test]
-fn assert_second_parser() {
-    use cronchik::Second;
-    assert_test!(Second);
+fn assert_day_of_month_parser() {
+    use cronchik::DayOfMonth;
+    assert_test!(DayOfMonth);
 }
 
 #[test]

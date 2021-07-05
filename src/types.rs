@@ -57,8 +57,8 @@ macro_rules! impl_into_inner {
 }
 
 impl_into_inner!(
-    Second unpack u8;
-    Second unpack usize;
+    DayOfMonth unpack u8;
+    DayOfMonth unpack usize;
     Minute unpack u8;
     Minute unpack usize;
     Hour unpack u8;
@@ -146,25 +146,25 @@ macro_rules! impl_from_expr {
 ///
 ///# Allowed values:
 ///
-///- `0..=59`
-pub struct Second(u8);
+///- `1..=31`
+pub struct DayOfMonth(u8);
 
-impl Second {
+impl DayOfMonth {
     ///Min possible value.
-    pub const MIN: u8 = 0;
+    pub const MIN: u8 = 1;
     ///Max possible value.
-    pub const MAX: u8 = 59;
+    pub const MAX: u8 = 31;
     ///Expression name.
-    pub const NAME: &'static str = "Second";
+    pub const NAME: &'static str = "Day of Month";
 
     ///Creates instance from numeric
-    const fn from_num_asserted(num: u8) -> Self {
+    pub(crate) const fn from_num_asserted(num: u8) -> Self {
         Self(num)
     }
 
     ///Creates instance from numeric
     pub const fn from_num(num: u8) -> Option<Self> {
-        if num < 60 {
+        if num <= Self::MAX {
             Some(Self(num))
         } else {
             None
@@ -174,14 +174,14 @@ impl Second {
     #[inline(always)]
     fn from_str(text: &str, invalid_val: InvalidExpr, invalid_range: InvalidExpr) -> Result<Self, InvalidExpr> {
         match text.parse() {
-            Ok(num) if num <= Self::MAX  => Ok(Self(num)),
+            Ok(num) if num <= Self::MAX && num >= Self::MIN => Ok(Self(num)),
             Ok(_) => return Err(invalid_range),
             Err(_) => return Err(invalid_val),
         }
     }
 
     ///Creates instance from cron expression
-    pub fn from_expr(text: &str) -> Result<statiki::Array<Self, 60>, InvalidExpr> {
+    pub fn from_expr(text: &str) -> Result<statiki::Array<Self, 31>, InvalidExpr> {
         impl_from_expr!(text);
     }
 }
@@ -205,7 +205,7 @@ impl Minute {
     pub const NAME: &'static str = "Minute";
 
     ///Creates instance from numeric
-    const fn from_num_asserted(num: u8) -> Self {
+    pub(crate) const fn from_num_asserted(num: u8) -> Self {
         Self(num)
     }
 
@@ -252,7 +252,7 @@ impl Hour {
     pub const NAME: &'static str = "Hour";
 
     ///Creates instance from numeric
-    const fn from_num_asserted(num: u8) -> Self {
+    pub(crate) const fn from_num_asserted(num: u8) -> Self {
         Self(num)
     }
 
@@ -280,7 +280,6 @@ impl Hour {
     }
 }
 
-#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Day of the week.
@@ -312,10 +311,10 @@ impl Day {
     ///Max possible value.
     pub const MAX: u8 = 6;
     ///Expression name.
-    pub const NAME: &'static str = "Day";
+    pub const NAME: &'static str = "Day of Week";
 
     ///Creates instance from numeric
-    fn from_num_asserted(num: u8) -> Self {
+    pub(crate) fn from_num_asserted(num: u8) -> Self {
         unsafe {
             core::mem::transmute(num)
         }
@@ -390,7 +389,77 @@ impl Day {
     }
 }
 
-#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
+#[cfg(feature = "serde_on")]
+impl serde::Serialize for Day {
+    #[inline]
+    fn serialize<SER: serde::ser::Serializer>(&self, ser: SER) -> Result<SER::Ok, SER::Error> {
+        ser.serialize_u8(*self as u8)
+    }
+}
+
+#[cfg(feature = "serde_on")]
+impl<'de> serde::Deserialize<'de> for Day {
+    #[inline]
+    fn deserialize<D: serde::de::Deserializer<'de>>(des: D) -> Result<Self, D::Error> {
+        use core::convert::TryInto;
+
+        const INVALID_RES: &'static str = "Not a valid cron month";
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Day;
+
+            #[inline(always)]
+            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+                formatter.write_str("a cron month")
+            }
+
+            #[inline]
+            fn visit_str<E: serde::de::Error>(self, input: &str) -> Result<Self::Value, E> {
+                match Day::from_bytes(input.as_bytes()) {
+                    Some(result) => Ok(result),
+                    None => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            #[inline]
+            fn visit_u8<E: serde::de::Error>(self, input: u8) -> Result<Self::Value, E> {
+                match Day::from_num(input) {
+                    Some(res) => Ok(res),
+                    None => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            //For json and friends we need to handle bigger integers
+            #[inline]
+            fn visit_u16<E: serde::de::Error>(self, input: u16) -> Result<Self::Value, E> {
+                match input.try_into() {
+                    Ok(num) => self.visit_u8(num),
+                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            #[inline]
+            fn visit_u32<E: serde::de::Error>(self, input: u32) -> Result<Self::Value, E> {
+                match input.try_into() {
+                    Ok(num) => self.visit_u8(num),
+                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            #[inline]
+            fn visit_u64<E: serde::de::Error>(self, input: u64) -> Result<Self::Value, E> {
+                match input.try_into() {
+                    Ok(num) => self.visit_u8(num),
+                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+        }
+
+        des.deserialize_u8(Visitor)
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Month of the year.
@@ -435,7 +504,7 @@ impl Month {
     pub const NAME: &'static str = "Month";
 
     ///Creates instance from numeric
-    fn from_num_asserted(num: u8) -> Self {
+    pub(crate) fn from_num_asserted(num: u8) -> Self {
         unsafe {
             core::mem::transmute(num)
         }
@@ -527,5 +596,76 @@ impl Month {
     ///Creates instance from cron expression
     pub fn from_expr(text: &str) -> Result<statiki::Array<Self, 12>, InvalidExpr> {
         impl_from_expr!(text);
+    }
+}
+
+#[cfg(feature = "serde_on")]
+impl serde::Serialize for Month {
+    #[inline]
+    fn serialize<SER: serde::ser::Serializer>(&self, ser: SER) -> Result<SER::Ok, SER::Error> {
+        ser.serialize_u8(*self as u8)
+    }
+}
+
+#[cfg(feature = "serde_on")]
+impl<'de> serde::Deserialize<'de> for Month {
+    #[inline]
+    fn deserialize<D: serde::de::Deserializer<'de>>(des: D) -> Result<Self, D::Error> {
+        use core::convert::TryInto;
+
+        const INVALID_RES: &'static str = "Not a valid cron month";
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Month;
+
+            #[inline(always)]
+            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+                formatter.write_str("a cron month")
+            }
+
+            #[inline]
+            fn visit_str<E: serde::de::Error>(self, input: &str) -> Result<Self::Value, E> {
+                match Month::from_bytes(input.as_bytes()) {
+                    Some(result) => Ok(result),
+                    None => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            #[inline]
+            fn visit_u8<E: serde::de::Error>(self, input: u8) -> Result<Self::Value, E> {
+                match Month::from_num(input) {
+                    Some(res) => Ok(res),
+                    None => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            //For json and friends we need to handle bigger integers
+            #[inline]
+            fn visit_u16<E: serde::de::Error>(self, input: u16) -> Result<Self::Value, E> {
+                match input.try_into() {
+                    Ok(num) => self.visit_u8(num),
+                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            #[inline]
+            fn visit_u32<E: serde::de::Error>(self, input: u32) -> Result<Self::Value, E> {
+                match input.try_into() {
+                    Ok(num) => self.visit_u8(num),
+                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+
+            #[inline]
+            fn visit_u64<E: serde::de::Error>(self, input: u64) -> Result<Self::Value, E> {
+                match input.try_into() {
+                    Ok(num) => self.visit_u8(num),
+                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
+                }
+            }
+        }
+
+        des.deserialize_u8(Visitor)
     }
 }

@@ -16,6 +16,11 @@ include = [
 [dependencies.serde]
 version = "1"
 features = ["derive"]
+default-features = false
+optional = true
+
+[dependencies.time]
+version = "0.2"
 optional = true
 
 [dependencies.statiki]
@@ -25,3 +30,6 @@ features = ["serde"]
 [features]
 # Enables serialization for CronSchedule
 serde_on = ["statiki/serde", "serde"]
+
+[dev-dependencies]
+serde_json = "1"
