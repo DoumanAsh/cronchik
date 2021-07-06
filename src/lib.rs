@@ -1,20 +1,31 @@
-//! Simple cron notation parser
+//! Simple cron notation parser.
+//!
+//!## Syntax
+//!
+//!# ┌───────────── minute (0 - 59)
+//!# │ ┌───────────── hour (0 - 23)
+//!# │ │ ┌───────────── day of the month (1 - 31)
+//!# │ │ │ ┌───────────── month (1 - 12)
+//!# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
+//!# │ │ │ │ │
+//!# │ │ │ │ │
+//!# * * * * *
 //!
 //!## Features
 //!
-//!- `serde_on` - Enables serialization/deserialization.
+//!- `serde` - Enables serialization/deserialization.
 //!- `time` - Enables schedule calculation using `time` crate.
 
 #![no_std]
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
-#[cfg(feature = "serde_on")]
-use serde::{Serialize, Deserialize};
-
 mod utils;
 mod types;
 pub use types::*;
+
+#[cfg(feature = "serde")]
+mod serde;
 
 #[derive(Debug, Copy, Clone)]
 ///Cron expression parser error
@@ -233,5 +244,71 @@ impl CronSchedule {
     ///Returns next point if time, after current time in UTC timezone.
     pub fn next_time_from_now(&self) -> time::OffsetDateTime {
         self.next_time_from(time::OffsetDateTime::now_utc())
+    }
+}
+
+impl core::fmt::Display for CronSchedule {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        macro_rules! write_expr {
+            ($name:ident) => {
+                if self.$name.len() == self.$name.capacity() {
+                    fmt.write_str("*")?;
+                } else {
+                    let elems = self.$name.as_slice();
+                    debug_assert_ne!(elems.len(), 0);
+
+                    let mut is_first = true;
+                    let mut start = elems[0];
+                    let mut end = start;
+                    let mut prev: u8 = start.into();
+
+                    let mut elems = elems.iter().skip(1);
+                    while let Some(elem) = elems.next() {
+                        let elem_repr: u8 = (*elem).into();
+
+                        if (prev + 1) == elem_repr {
+                            end = *elem;
+                        } else {
+                            if !is_first {
+                                fmt.write_str(",")?;
+                            }
+
+                            is_first = false;
+                            if start == end {
+                                fmt.write_fmt(format_args!("{}", start))?;
+                            } else {
+                                fmt.write_fmt(format_args!("{}-{}", start, end))?;
+                            }
+
+                            start = *elem;
+                            end = *elem;
+                        }
+
+                        prev = end.into();
+                    }
+
+                    if !is_first {
+                        fmt.write_str(",")?;
+                    }
+
+                    if start == end {
+                        fmt.write_fmt(format_args!("{}", start))?;
+                    } else {
+                        fmt.write_fmt(format_args!("{}-{}", start, end))?;
+                    }
+                }
+            }
+        }
+
+        write_expr!(minute);
+        fmt.write_str(" ")?;
+        write_expr!(hour);
+        fmt.write_str(" ")?;
+        write_expr!(day_m);
+        fmt.write_str(" ")?;
+        write_expr!(month);
+        fmt.write_str(" ")?;
+        write_expr!(day_w);
+        Ok(())
     }
 }

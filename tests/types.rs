@@ -87,3 +87,38 @@ fn assert_month_parser() {
     use cronchik::Month;
     assert_test!(Month);
 }
+
+#[test]
+fn assert_display_correctness() {
+    let crons = [
+        "1 * * * *",
+        "1 1 * * *",
+        "0 20 10 * *",
+        "0 20 * * SAT",
+        "0 20 * MAR FRI",
+    ];
+
+    for cron in crons.iter() {
+        let schedule = cronchik::CronSchedule::parse_str(cron).unwrap();
+        let text = format!("{}", schedule);
+        assert_eq!(*cron, text);
+        let rev_schedule = cronchik::CronSchedule::parse_str(&text).unwrap();
+        assert_eq!(schedule, rev_schedule);
+    }
+
+    //Because it is impossible to reliably decide how to group into step by expression
+    let crons = [
+        ("0 20 * MAR/2 FRI", "0 20 * MAR,MAY,JUL,SEP,NOV FRI"),
+        ("0 1,10-20 * MAR/2 FRI", "0 1,10-20 * MAR,MAY,JUL,SEP,NOV FRI"),
+        ("0 1,10/2 * MAR/2 FRI", "0 1,10,12,14,16,18,20,22 * MAR,MAY,JUL,SEP,NOV FRI"),
+        ("10,20,30/10 1,10/2 * MAR/2 FRI", "10,20,30,40,50 1,10,12,14,16,18,20,22 * MAR,MAY,JUL,SEP,NOV FRI"),
+    ];
+
+    for (cron, expected_rev) in crons.iter() {
+        let schedule = cronchik::CronSchedule::parse_str(cron).unwrap();
+        let text = format!("{}", schedule);
+        assert_eq!(*expected_rev, text);
+        let rev_schedule = cronchik::CronSchedule::parse_str(&text).unwrap();
+        assert_eq!(schedule, rev_schedule);
+    }
+}

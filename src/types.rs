@@ -1,6 +1,3 @@
-#[cfg(feature = "serde_on")]
-use serde::{Serialize, Deserialize};
-
 use crate::utils::IteratorExt;
 
 const ZERO_CHAR_BYTE: u8 = b'0';
@@ -143,7 +140,6 @@ macro_rules! impl_from_expr {
     }
 }
 
-#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Second of the minute.
@@ -190,7 +186,13 @@ impl DayOfMonth {
     }
 }
 
-#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
+impl core::fmt::Display for DayOfMonth {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.write_fmt(format_args!("{}", self.0))
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Minute of the hour.
@@ -237,7 +239,13 @@ impl Minute {
     }
 }
 
-#[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
+impl core::fmt::Display for Minute {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.write_fmt(format_args!("{}", self.0))
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 ///Hour of the day.
@@ -281,6 +289,13 @@ impl Hour {
     ///Creates instance from cron expression
     pub fn from_expr(text: &str) -> Result<statiki::Array<Self, 24>, InvalidExpr> {
         impl_from_expr!(text);
+    }
+}
+
+impl core::fmt::Display for Hour {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.write_fmt(format_args!("{}", self.0))
     }
 }
 
@@ -339,6 +354,20 @@ impl Day {
         }
     }
 
+    ///Returns textual representation of cron expression
+    #[inline(always)]
+    pub const fn to_textual_repr(self) -> &'static str {
+        match self {
+            Self::Sunday => "SUN",
+            Self::Monday => "MON",
+            Self::Tuesday => "TUE",
+            Self::Wednesday => "WED",
+            Self::Thursday => "THU",
+            Self::Friday => "FRI",
+            Self::Saturday => "SAT",
+        }
+    }
+
     const fn from_textual_repr(text: &[u8]) -> Option<Self> {
         let text = [
             text[0].to_ascii_uppercase(),
@@ -393,74 +422,10 @@ impl Day {
     }
 }
 
-#[cfg(feature = "serde_on")]
-impl serde::Serialize for Day {
-    #[inline]
-    fn serialize<SER: serde::ser::Serializer>(&self, ser: SER) -> Result<SER::Ok, SER::Error> {
-        ser.serialize_u8(*self as u8)
-    }
-}
-
-#[cfg(feature = "serde_on")]
-impl<'de> serde::Deserialize<'de> for Day {
-    #[inline]
-    fn deserialize<D: serde::de::Deserializer<'de>>(des: D) -> Result<Self, D::Error> {
-        use core::convert::TryInto;
-
-        const INVALID_RES: &'static str = "Not a valid cron month";
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = Day;
-
-            #[inline(always)]
-            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
-                formatter.write_str("a cron month")
-            }
-
-            #[inline]
-            fn visit_str<E: serde::de::Error>(self, input: &str) -> Result<Self::Value, E> {
-                match Day::from_bytes(input.as_bytes()) {
-                    Some(result) => Ok(result),
-                    None => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            #[inline]
-            fn visit_u8<E: serde::de::Error>(self, input: u8) -> Result<Self::Value, E> {
-                match Day::from_num(input) {
-                    Some(res) => Ok(res),
-                    None => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            //For json and friends we need to handle bigger integers
-            #[inline]
-            fn visit_u16<E: serde::de::Error>(self, input: u16) -> Result<Self::Value, E> {
-                match input.try_into() {
-                    Ok(num) => self.visit_u8(num),
-                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            #[inline]
-            fn visit_u32<E: serde::de::Error>(self, input: u32) -> Result<Self::Value, E> {
-                match input.try_into() {
-                    Ok(num) => self.visit_u8(num),
-                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            #[inline]
-            fn visit_u64<E: serde::de::Error>(self, input: u64) -> Result<Self::Value, E> {
-                match input.try_into() {
-                    Ok(num) => self.visit_u8(num),
-                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-        }
-
-        des.deserialize_u8(Visitor)
+impl core::fmt::Display for Day {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.write_str(self.to_textual_repr())
     }
 }
 
@@ -535,6 +500,25 @@ impl Month {
 
     }
 
+    ///Returns textual representation of cron expression
+    #[inline(always)]
+    pub const fn to_textual_repr(self) -> &'static str {
+        match self {
+            Self::January => "JAN",
+            Self::February => "FEB",
+            Self::March => "MAR",
+            Self::April => "APR",
+            Self::May => "MAY",
+            Self::June => "JUN",
+            Self::July => "JUL",
+            Self::August => "AUG",
+            Self::September => "SEP",
+            Self::October => "OCT",
+            Self::November => "NOV",
+            Self::December => "DEC",
+        }
+    }
+
     const fn from_textual_repr(text: &[u8]) -> Option<Self> {
         let text = [
             text[0].to_ascii_uppercase(),
@@ -603,73 +587,9 @@ impl Month {
     }
 }
 
-#[cfg(feature = "serde_on")]
-impl serde::Serialize for Month {
-    #[inline]
-    fn serialize<SER: serde::ser::Serializer>(&self, ser: SER) -> Result<SER::Ok, SER::Error> {
-        ser.serialize_u8(*self as u8)
-    }
-}
-
-#[cfg(feature = "serde_on")]
-impl<'de> serde::Deserialize<'de> for Month {
-    #[inline]
-    fn deserialize<D: serde::de::Deserializer<'de>>(des: D) -> Result<Self, D::Error> {
-        use core::convert::TryInto;
-
-        const INVALID_RES: &'static str = "Not a valid cron month";
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = Month;
-
-            #[inline(always)]
-            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
-                formatter.write_str("a cron month")
-            }
-
-            #[inline]
-            fn visit_str<E: serde::de::Error>(self, input: &str) -> Result<Self::Value, E> {
-                match Month::from_bytes(input.as_bytes()) {
-                    Some(result) => Ok(result),
-                    None => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            #[inline]
-            fn visit_u8<E: serde::de::Error>(self, input: u8) -> Result<Self::Value, E> {
-                match Month::from_num(input) {
-                    Some(res) => Ok(res),
-                    None => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            //For json and friends we need to handle bigger integers
-            #[inline]
-            fn visit_u16<E: serde::de::Error>(self, input: u16) -> Result<Self::Value, E> {
-                match input.try_into() {
-                    Ok(num) => self.visit_u8(num),
-                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            #[inline]
-            fn visit_u32<E: serde::de::Error>(self, input: u32) -> Result<Self::Value, E> {
-                match input.try_into() {
-                    Ok(num) => self.visit_u8(num),
-                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-
-            #[inline]
-            fn visit_u64<E: serde::de::Error>(self, input: u64) -> Result<Self::Value, E> {
-                match input.try_into() {
-                    Ok(num) => self.visit_u8(num),
-                    Err(_) => Err(serde::de::Error::custom(INVALID_RES)),
-                }
-            }
-        }
-
-        des.deserialize_u8(Visitor)
+impl core::fmt::Display for Month {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.write_str(self.to_textual_repr())
     }
 }
