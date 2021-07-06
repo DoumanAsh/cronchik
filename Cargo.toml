@@ -6,6 +6,7 @@ edition = "2018"
 description = "Simple cron notation parser"
 license = "BSL-1.0"
 repository = "https://github.com/DoumanAsh/cronchik"
+keywords = ["cron", "schedule", "time"]
 readme = "README.md"
 include = [
     "**/*.rs",
