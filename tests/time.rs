@@ -157,10 +157,9 @@ fn should_schedule_on_overflow_day_of_week() {
 fn should_pass_100_iterations() {
     let expected_time = time::OffsetDateTime::from_unix_timestamp(1_590_274_800);
     let mut time = time::OffsetDateTime::from_unix_timestamp(1_573_239_864);
-    let schedule = CronSchedule::parse_str("0 23 */2 * *").unwrap();
 
     for _ in 0..=100 {
-        time = schedule.next_time_from(time);
+        time = cronchik::parse_cron_from_time("0 23 */2 * *", time).unwrap()
     }
 
     assert_eq!(time, expected_time);

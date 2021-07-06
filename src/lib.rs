@@ -149,6 +149,8 @@ impl CronSchedule {
 
     #[cfg(feature = "time")]
     ///Returns next point if time, after `time`, accordingly to the schedule.
+    ///
+    ///Available with `time` feature
     pub fn next_time_from(&self, time: time::OffsetDateTime) -> time::OffsetDateTime {
         let mut next = time + time::Duration::minute();
 
@@ -244,6 +246,8 @@ impl CronSchedule {
     #[cfg(feature = "time")]
     #[inline(always)]
     ///Returns next point if time, after current time in UTC timezone.
+    ///
+    ///Available with `time` feature
     pub fn next_time_from_now(&self) -> time::OffsetDateTime {
         self.next_time_from(time::OffsetDateTime::now_utc())
     }
@@ -313,4 +317,23 @@ impl core::fmt::Display for CronSchedule {
         write_expr!(day_w);
         Ok(())
     }
+}
+
+#[inline]
+#[cfg(feature = "time")]
+///Gets schedule after `time`.
+///
+///Returns `Err` if `cron` is invalid;
+pub fn parse_cron_from_time(cron: &str, time: time::OffsetDateTime) -> Result<time::OffsetDateTime, ParseError> {
+    let schedule = CronSchedule::parse_str(cron)?;
+    Ok(schedule.next_time_from(time))
+}
+
+#[inline]
+#[cfg(feature = "time")]
+///Gets schedule after current time in UTC.
+///
+///Returns `Err` if `cron` is invalid;
+pub fn parse_cron_from_time_now(cron: &str) -> Result<time::OffsetDateTime, ParseError> {
+    parse_cron_from_time(cron, time::OffsetDateTime::now_utc())
 }
