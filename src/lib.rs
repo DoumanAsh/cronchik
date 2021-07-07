@@ -2,16 +2,13 @@
 //!
 //!## Syntax
 //!
-//!```ignore
-//!# ┌───────────── minute (0 - 59)
-//!# │ ┌───────────── hour (0 - 23)
-//!# │ │ ┌───────────── day of the month (1 - 31)
-//!# │ │ │ ┌───────────── month (1 - 12)
-//!# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
-//!# │ │ │ │ │
-//!# │ │ │ │ │
-//!# * * * * *
-//!```
+//!`<minutes> <hours> <days of month> <months> <days of week>`
+//!
+//!- `minute` is integer in range `0..=59`;
+//!- `hour` is integer in range `0..=23`;
+//!- `day of month` is integer in range `1..=31`;
+//!- `month` is integer in range `1..=12` or textual representation like `JAN` or `DEC`;
+//!- `day of week` is integer in range `0..=6` or textual representation like `SUN` or `SAT`;
 //!
 //!## Features
 //!
@@ -25,6 +22,17 @@
 mod utils;
 mod types;
 pub use types::*;
+
+///Cron expression to run once a year at midnight of January 1st.
+pub const YEARLY: &'static str = "0 0 1 1 *";
+///Cron expression to run once a month at midnight of first day.
+pub const MONTHLY: &'static str = "0 0 1 * *";
+///Cron expression to run once a week at midnight of the Sunday.
+pub const WEEKLY: &'static str = "0 0 * * 0";
+///Cron expression to run once a day at midnight.
+pub const DAILY: &'static str = "0 0 * * *";
+///Cron expression to run once a hour.
+pub const HOURLY: &'static str = "0 * * * *";
 
 #[cfg(feature = "serde")]
 mod serde;

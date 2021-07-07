@@ -154,6 +154,81 @@ fn should_schedule_on_overflow_day_of_week() {
 }
 
 #[test]
+fn should_schedule_every_sunday() {
+    let time = time::date!(2019-01-31).midnight().assume_utc();
+    let schedule = CronSchedule::parse_str(cronchik::WEEKLY).unwrap();
+    assert_eq!(schedule.minutes().len(), 1);
+    assert_eq!(schedule.hours().len(), 1);
+    assert_eq!(schedule.days_of_week().len(), 1);
+
+    assert_eq!(schedule.days_of_week().len(), 1);
+    let mut prev = schedule.next_time_from(time);
+    for _ in 0..10 {
+        let next = schedule.next_time_from(prev);
+        assert_ne!(prev.date(), next.date());
+        prev = next;
+    }
+}
+
+#[test]
+fn should_schedule_every_hour() {
+    let time = time::date!(2019-01-31).midnight().assume_utc();
+    let schedule = CronSchedule::parse_str(cronchik::HOURLY).unwrap();
+    assert_eq!(schedule.minutes().len(), 1);
+    assert_eq!(schedule.hours().len(), 24);
+
+    let mut prev = schedule.next_time_from(time);
+    for _ in 0..10 {
+        let next = schedule.next_time_from(prev);
+        assert_eq!(prev.date(), next.date());
+        assert_ne!(prev.time(), next.time());
+        assert_eq!(next - prev, time::Duration::hour());
+        prev = next;
+    }
+}
+
+#[test]
+fn should_schedule_every_month() {
+    let time = time::date!(2019-01-31).midnight().assume_utc();
+    let schedule = CronSchedule::parse_str(cronchik::MONTHLY).unwrap();
+    assert_eq!(schedule.minutes().len(), 1);
+    assert_eq!(schedule.hours().len(), 1);
+    assert_eq!(schedule.days_of_month().len(), 1);
+
+    let mut prev = schedule.next_time_from(time);
+    for _ in 0..10 {
+        let next = schedule.next_time_from(prev);
+
+        assert_eq!(prev.date().year(), next.date().year());
+        assert_eq!(prev.date().day(), next.date().day());
+        assert_eq!(prev.date().month() + 1, next.date().month());
+
+        prev = next;
+    }
+}
+
+#[test]
+fn should_schedule_every_year() {
+    let time = time::date!(2019-01-31).midnight().assume_utc();
+    let schedule = CronSchedule::parse_str(cronchik::YEARLY).unwrap();
+    assert_eq!(schedule.minutes().len(), 1);
+    assert_eq!(schedule.hours().len(), 1);
+    assert_eq!(schedule.days_of_month().len(), 1);
+    assert_eq!(schedule.months().len(), 1);
+
+    let mut prev = schedule.next_time_from(time);
+    for _ in 0..10 {
+        let next = schedule.next_time_from(prev);
+
+        assert_eq!(prev.date().year() + 1, next.date().year());
+        assert_eq!(prev.date().day(), next.date().day());
+        assert_eq!(prev.date().month(), next.date().month());
+
+        prev = next;
+    }
+}
+
+#[test]
 fn should_pass_100_iterations() {
     let expected_time = time::OffsetDateTime::from_unix_timestamp(1_590_274_800);
     let mut time = time::OffsetDateTime::from_unix_timestamp(1_573_239_864);
