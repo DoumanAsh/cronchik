@@ -1,4 +1,4 @@
-//! Simple cron notation parser.
+//! Simple cron expression parser.
 //!
 //!## Syntax
 //!
