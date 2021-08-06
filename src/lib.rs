@@ -77,6 +77,8 @@ pub enum ParseError {
 ///
 ///let schedule = CronSchedule::parse_str("5 * * * *").unwrap();
 ///assert_eq!(core::mem::size_of::<CronSchedule>(), 184);
+///let display = format!("{}", schedule);
+///assert_eq!(display, "5 * * * *");
 ///```
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
