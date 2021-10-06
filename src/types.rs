@@ -587,6 +587,15 @@ impl Month {
     }
 }
 
+impl From<&'_ Month> for time::Month {
+    #[inline(always)]
+    fn from(this: &Month) -> Self {
+        unsafe {
+            core::mem::transmute(*this)
+        }
+    }
+}
+
 impl core::fmt::Display for Month {
     #[inline(always)]
     fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

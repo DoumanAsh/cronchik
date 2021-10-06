@@ -20,7 +20,7 @@ default-features = false
 optional = true
 
 [dependencies.time]
-version = "0.2"
+version = "0.3"
 optional = true
 
 [dependencies.statiki]
@@ -28,6 +28,10 @@ version = "0.4.3"
 
 [dev-dependencies]
 serde_json = "1"
+
+[dev-dependencies.time]
+version = "0.3"
+features = ["macros"]
 
 [package.metadata.docs.rs]
 features = ["serde", "time"]
