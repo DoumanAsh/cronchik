@@ -13,7 +13,7 @@
 //!## Features
 //!
 //!- `serde` - Enables serialization/deserialization.
-//!- `time` - Enables schedule calculation using `time` crate.
+//!- `time` - Enables schedule calculation using `time03` crate.
 
 #![no_std]
 #![warn(missing_docs)]
@@ -36,6 +36,8 @@ pub const HOURLY: &'static str = "0 * * * *";
 
 #[cfg(feature = "serde")]
 mod serde;
+#[cfg(feature = "time")]
+pub extern crate time;
 
 #[derive(Debug, Copy, Clone)]
 ///Cron expression parser error
@@ -103,7 +105,7 @@ impl CronSchedule {
                         Err(error) => return Err(ParseError::InvalidExpr(<$ty>::NAME, error)),
                     },
                     None => return Err(ParseError::Incomplete),
-                };
+                }
             }
         }
 
@@ -162,20 +164,21 @@ impl CronSchedule {
     ///
     ///Available with `time` feature
     pub fn next_time_from(&self, time: time::OffsetDateTime) -> time::OffsetDateTime {
-        let mut next = time + time::Duration::minute();
+        let mut next = time + time::Duration::minutes(1);
 
         let result = loop {
             debug_assert_ne!(next.year() - time.year(), 5, "Unable to find  schedule within 4 years");
 
-            let (month, day) = next.month_day();
+            let month = next.month() as u8;
+            let day = next.day();
 
             if let Err(idx) = self.month.binary_search(&Month::from_num_asserted(month)) {
                 let date = match self.month.get(idx) {
-                    Some(month) => time::Date::try_from_ymd(next.year(), *month as _, 1).expect("Get next month date"),
-                    None => time::Date::try_from_ymd(next.year() + 1, 1, 1).expect("Get next year date"),
+                    Some(month) => time::Date::from_calendar_date(next.year(), (*month).into(), 1).expect("Get next month date"),
+                    None => time::Date::from_calendar_date(next.year() + 1, time::Month::January, 1).expect("Get next year date"),
                 };
 
-                let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
+                let date_time = time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
                 next = date_time.assume_utc();
 
                 continue;
@@ -183,15 +186,15 @@ impl CronSchedule {
 
             if let Err(idx) = self.day_m.binary_search(&DayOfMonth::from_num_asserted(day)) {
                 //If not today, check next available day in schedule, if any.
-                let date = match self.day_m.get(idx).and_then(|day| time::Date::try_from_ymd(next.year(), month, (*day).into()).ok()) {
+                let date = match self.day_m.get(idx).and_then(|day| time::Date::from_calendar_date(next.year(), Month::from_num_asserted(month).into(), (*day).into()).ok()) {
                     Some(date) => date,
                     //If next allowed day doesn't fit the current month, then just switch to next month, unless it is last month
-                    None if month < Month::MAX => time::Date::try_from_ymd(next.year(), month + 1, 1).expect("Get next month date"),
+                    None if month < Month::MAX => time::Date::from_calendar_date(next.year(), Month::from_num_asserted(month + 1).into(), 1).expect("Get next month date"),
                     //If it is last month, then switch to next year.
-                    None => time::Date::try_from_ymd(next.year() + 1, 1, 1).expect("Get next year date"),
+                    None => time::Date::from_calendar_date(next.year() + 1, time::Month::January, 1).expect("Get next year date"),
                 };
 
-                let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
+                let date_time = time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
                 next = date_time.assume_utc();
 
                 continue;
@@ -201,19 +204,19 @@ impl CronSchedule {
             let weekday_s = weekday.number_days_from_sunday();
             if let Err(idx) = self.day_w.binary_search(&Day::from_num_asserted(weekday_s)) {
                 let date = match self.day_w.get(idx) {
-                    Some(day_w) => match time::Date::try_from_ymd(next.year(), month, day + *day_w as u8 - weekday_s) {
+                    Some(day_w) => match time::Date::from_calendar_date(next.year(), Month::from_num_asserted(month).into(), day + *day_w as u8 - weekday_s) {
                         //Day is on current week.
                         Ok(date) => date,
                         //Day is in next month so iterate onto next month (note weekday enum is in range 0..6)
-                        Err(_) if month < Month::MAX => time::Date::try_from_ymd(next.year(), month + 1, *day_w as u8 - weekday_s).expect("Get next month date"),
+                        Err(_) if month < Month::MAX => time::Date::from_calendar_date(next.year(), Month::from_num_asserted(month + 1).into(), *day_w as u8 - weekday_s).expect("Get next month date"),
                         //Day is in next year so iterate onto next month (note weekday enum is in range 0..6)
-                        Err(_) => time::Date::try_from_ymd(next.year() + 1, 1, *day_w as u8 - weekday_s).expect("Get next year date"),
+                        Err(_) => time::Date::from_calendar_date(next.year() + 1, time::Month::January, *day_w as u8 - weekday_s).expect("Get next year date"),
                     },
                     //This week doesn't work, iterate onto next week by number of days until Sunday
                     None => next.date() + time::Duration::days(time::Weekday::Sunday as i64 - weekday as i64),
                 };
 
-                let date_time = time::PrimitiveDateTime::new(date, time::Time::midnight());
+                let date_time = time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
                 next = date_time.assume_utc();
 
                 continue;
@@ -222,9 +225,9 @@ impl CronSchedule {
             let hour = next.hour();
             if let Err(idx) = self.hour.binary_search(&Hour::from_num_asserted(hour)) {
                 let (date, time) = match self.hour.get(idx) {
-                    Some(hour) => (next.date(), time::Time::try_from_hms((*hour).into(), 0, 0).expect("Get next hour")),
+                    Some(hour) => (next.date(), time::Time::from_hms((*hour).into(), 0, 0).expect("Get next hour")),
                     //Try next day
-                    None => (next.date() + time::Duration::day(), time::Time::midnight()),
+                    None => (next.date() + time::Duration::days(1), time::Time::MIDNIGHT),
                 };
 
                 next = time::PrimitiveDateTime::new(date, time).assume_utc();
@@ -235,13 +238,13 @@ impl CronSchedule {
             if let Err(idx) = self.minute.binary_search(&Minute::from_num_asserted(minute)) {
                 match self.minute.get(idx) {
                     Some(minute) => {
-                        let time = time::Time::try_from_hms(hour, (*minute).into(), 0).expect("Get next minute");
+                        let time = time::Time::from_hms(hour, (*minute).into(), 0).expect("Get next minute");
                         next = time::PrimitiveDateTime::new(next.date(), time).assume_utc();
                     },
                     //Next hour
                     None => {
-                        let time = time::Time::try_from_hms(hour, 0, 0).expect("Get current hour");
-                        next = time::PrimitiveDateTime::new(next.date(), time).assume_utc() + time::Duration::hour();
+                        let time = time::Time::from_hms(hour, 0, 0).expect("Get current hour");
+                        next = time::PrimitiveDateTime::new(next.date(), time).assume_utc() + time::Duration::hours(1);
                     }
                 }
                 continue;

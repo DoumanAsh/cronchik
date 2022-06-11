@@ -464,6 +464,16 @@ pub enum Month {
     December = 12,
 }
 
+#[cfg(feature = "time")]
+impl Into<time::Month> for Month {
+    #[inline]
+    fn into(self) -> time::Month {
+        unsafe {
+            core::mem::transmute(self)
+        }
+    }
+}
+
 impl Month {
     ///Min possible value.
     pub const MIN: u8 = 1;
