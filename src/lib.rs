@@ -82,7 +82,7 @@ pub enum ParseError {
 ///let display = format!("{}", schedule);
 ///assert_eq!(display, "5 * * * *");
 ///```
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde_on", derive(Serialize, Deserialize))]
 pub struct CronSchedule {
     minute: statiki::Array<Minute, {(Minute::MAX - Minute::MIN) as usize + 1}>,
@@ -263,6 +263,13 @@ impl CronSchedule {
     ///Available with `time` feature
     pub fn next_time_from_now(&self) -> time::OffsetDateTime {
         self.next_time_from(time::OffsetDateTime::now_utc())
+    }
+}
+
+impl core::fmt::Debug for CronSchedule {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, fmt)
     }
 }
 

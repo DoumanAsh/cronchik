@@ -1,6 +1,6 @@
 [package]
 name = "cronchik"
-version = "2.0.0"
+version = "2.0.1"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 description = "Simple cron expression parser"
