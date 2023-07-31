@@ -12,6 +12,7 @@
 //!
 //!## Features
 //!
+//!- `std` - Enables use of `std` library types and traits.
 //!- `serde` - Enables serialization/deserialization.
 //!- `time` - Enables schedule calculation using `time03` crate.
 
@@ -19,9 +20,14 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 mod utils;
 mod types;
 pub use types::*;
+
+use core::fmt;
 
 ///Cron expression to run once a year at midnight of January 1st.
 pub const YEARLY: &'static str = "0 0 1 1 *";
@@ -61,6 +67,20 @@ pub enum ParseError {
     ///Cron expression includes year field, which is unsupported
     Unsupported,
 }
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidCharAt(ch, pos) => fmt.write_fmt(format_args!("Invalid character '{ch:x}' at position {pos}")),
+            Self::InvalidExpr(name, error) => fmt.write_fmt(format_args!("{name}: {:?}", error)),
+            Self::Incomplete => fmt.write_str("Incomplete cron expression"),
+            Self::Unsupported => fmt.write_str("Cron expression includes unsupported field (year)"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for ParseError {}
 
 ///Cron schedule.
 ///

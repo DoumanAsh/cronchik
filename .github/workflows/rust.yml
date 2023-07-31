@@ -39,4 +39,4 @@ jobs:
         rustc --version
 
     - name: Test
-      run: cargo test --features serde,time
+      run: cargo test --features serde,time,std

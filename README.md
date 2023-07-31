@@ -21,5 +21,6 @@ Cron expression parser.
 
 ## Features
 
+- `std` - Enables use of `std` library types and traits.
 - `serde` - Enables serialization/deserialization.
 - `time` - Enables schedule calculation using `time` crate.
