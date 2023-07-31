@@ -164,6 +164,7 @@ impl CronSchedule {
     ///
     ///Available with `time` feature
     pub fn next_time_from(&self, time: time::OffsetDateTime) -> time::OffsetDateTime {
+        let offset = time.offset();
         let mut next = time + time::Duration::minutes(1);
 
         let result = loop {
@@ -179,7 +180,7 @@ impl CronSchedule {
                 };
 
                 let date_time = time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
-                next = date_time.assume_utc();
+                next = date_time.assume_offset(offset);
 
                 continue;
             }
@@ -195,7 +196,7 @@ impl CronSchedule {
                 };
 
                 let date_time = time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
-                next = date_time.assume_utc();
+                next = date_time.assume_offset(offset);
 
                 continue;
             }
@@ -217,7 +218,7 @@ impl CronSchedule {
                 };
 
                 let date_time = time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT);
-                next = date_time.assume_utc();
+                next = date_time.assume_offset(offset);
 
                 continue;
             }
@@ -230,7 +231,7 @@ impl CronSchedule {
                     None => (next.date() + time::Duration::days(1), time::Time::MIDNIGHT),
                 };
 
-                next = time::PrimitiveDateTime::new(date, time).assume_utc();
+                next = time::PrimitiveDateTime::new(date, time).assume_offset(offset);
                 continue;
             }
 
@@ -239,12 +240,12 @@ impl CronSchedule {
                 match self.minute.get(idx) {
                     Some(minute) => {
                         let time = time::Time::from_hms(hour, (*minute).into(), 0).expect("Get next minute");
-                        next = time::PrimitiveDateTime::new(next.date(), time).assume_utc();
+                        next = time::PrimitiveDateTime::new(next.date(), time).assume_offset(offset);
                     },
                     //Next hour
                     None => {
                         let time = time::Time::from_hms(hour, 0, 0).expect("Get current hour");
-                        next = time::PrimitiveDateTime::new(next.date(), time).assume_utc() + time::Duration::hours(1);
+                        next = time::PrimitiveDateTime::new(next.date(), time).assume_offset(offset) + time::Duration::hours(1);
                     }
                 }
                 continue;

@@ -13,6 +13,35 @@ fn should_schedule_on_next_minute() {
 }
 
 #[test]
+fn should_schedule_on_every_minute_offset() {
+    let time = time::macros::date!(2019-01-01).midnight().assume_offset(time::macros::offset!(+3));
+    let schedule = CronSchedule::parse_str("* * * * *").unwrap();
+
+    assert_eq!(schedule.minutes().len(), 60);
+
+    assert_eq!(schedule.next_time_from(time).time(), time::macros::time!(00:01));
+
+    let mut prev_time = schedule.next_time_from(time);
+    for idx in 1..90 {
+        let next = schedule.next_time_from(prev_time);
+        assert_eq!(next.offset(), time::macros::offset!(+3));
+        assert_eq!(next.time(), time::macros::time!(00:01) + time::Duration::minutes(idx));
+        prev_time = next;
+    }
+}
+
+#[test]
+fn should_schedule_on_next_hour_offset() {
+    let time = time::macros::date!(2019-01-01).midnight().assume_offset(time::macros::offset!(+3));
+    let schedule = CronSchedule::parse_str("0 1 * * *").unwrap();
+
+    assert_eq!(schedule.minutes().len(), 1);
+
+    assert_eq!(schedule.next_time_from(time).offset(), time::macros::offset!(+3));
+    assert_eq!(schedule.next_time_from(time).time(), time::macros::time!(01:00));
+}
+
+#[test]
 fn should_schedule_on_overflow_minute() {
     let time = time::macros::date!(2019-01-01).midnight().assume_utc() + time::Duration::minutes(1);
     let schedule = CronSchedule::parse_str("1 * * * *").unwrap();
