@@ -27,6 +27,26 @@ mod utils;
 mod types;
 pub use types::*;
 
+#[allow(unused)]
+#[doc(hidden)]
+#[cfg(not(debug_assertions))]
+macro_rules! unreach {
+    () => ({
+        unsafe {
+            core::hint::unreachable_unchecked();
+        }
+    })
+}
+
+#[allow(unused)]
+#[doc(hidden)]
+#[cfg(debug_assertions)]
+macro_rules! unreach {
+    () => ({
+        unreachable!()
+    })
+}
+
 use core::fmt;
 
 ///Cron expression to run once a year at midnight of January 1st.
@@ -186,6 +206,14 @@ impl CronSchedule {
     pub fn next_time_from(&self, time: time::OffsetDateTime) -> time::OffsetDateTime {
         let offset = time.offset();
         let mut next = time + time::Duration::minutes(1);
+        next = match next.replace_second(0) {
+            Ok(next) => next,
+            Err(_) => unreach!(),
+        };
+        next = match next.replace_nanosecond(0) {
+            Ok(next) => next,
+            Err(_) => unreach!(),
+        };
 
         let result = loop {
             debug_assert_ne!(next.year() - time.year(), 5, "Unable to find  schedule within 4 years");

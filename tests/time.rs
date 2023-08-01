@@ -14,7 +14,7 @@ fn should_schedule_on_next_minute() {
 
 #[test]
 fn should_schedule_on_every_minute_offset() {
-    let time = time::macros::date!(2019-01-01).midnight().assume_offset(time::macros::offset!(+3));
+    let time = time::macros::date!(2019-01-01).midnight().assume_offset(time::macros::offset!(+3)) + time::Duration::seconds(1);
     let schedule = CronSchedule::parse_str("* * * * *").unwrap();
 
     assert_eq!(schedule.minutes().len(), 60);
@@ -26,6 +26,7 @@ fn should_schedule_on_every_minute_offset() {
         let next = schedule.next_time_from(prev_time);
         assert_eq!(next.offset(), time::macros::offset!(+3));
         assert_eq!(next.time(), time::macros::time!(00:01) + time::Duration::minutes(idx));
+        assert_eq!(next.time().second(), 0);
         prev_time = next;
     }
 }
